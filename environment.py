@@ -45,7 +45,8 @@ def setupEnv(cfg, update=False):
     prefix_lib = prefix + "/lib"
     prefix_pkg = prefix_lib + "/pkgconfig"
     pythonver = "%d.%d" % (sys.version_info.major, sys.version_info.minor)
-    pythonpath = prefix_lib + "/python%d.%d/site-packages" % (sys.version_info.major, sys.version_info.minor)
+    current_installation = "/python%d.%d/site-packages" % (sys.version_info.major, sys.version_info.minor)
+    pythonpath = prefix_lib + current_installation
     platform = system()
     if platform == "Windows":
         # todo: make this more generic
@@ -91,6 +92,11 @@ def setupEnv(cfg, update=False):
     else:
         with open(cfg["devDir"]+"/env.sh", "w") as f:
             f.write("#! /bin/bash\n")
+            f.write('export PREFIX_LIB="'+prefix_lib+'"\n')
+            # use the currently active python interpreter to choose the installation
+            f.write('export SUITABLE_INSTALLATION="$PREFIX_LIB$(python -c \'import sys; print("/python%d.%d/site-packages" % (sys.version_info.major, sys.version_info.minor))\')"\n')
+            # notify when there is no installation available for this python version
+            f.write('ls "$SUITABLE_INSTALLATION" > /dev/null || echo "$(python --version 2>&1) has no installation of BOLeRo yet"\n')
             f.write('export AUTOPROJ_CURRENT_ROOT="'+cfg["devDir"]+'"\n')
             f.write('if [ x${CMAKE_PREFIX_PATH} = "x" ]; then\n')
             f.write('  export CMAKE_PREFIX_PATH="'+cfg["devDir"]+'/install"\n')
@@ -113,8 +119,7 @@ def setupEnv(cfg, update=False):
                 f.write('export PATH="'+prefix_lib+':$PATH"\n')
                 f.write('export USE_QT5=1\n')
             f.write('export ROCK_CONFIGURATION_PATH="'+prefix_config+'"\n')
-            f.write('export PYTHONPATH="' + pythonpath + ':$PYTHONPATH"\n')
-
+            f.write('export PYTHONPATH="$SUITABLE_INSTALLATION:$PYTHONPATH"\n')
             f.write('if [ x${PKG_CONFIG_PATH} = "x" ]; then\n')
             f.write('  export PKG_CONFIG_PATH="'+prefix_pkg+'"\n')
             f.write('else\n')
